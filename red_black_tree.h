@@ -15,6 +15,7 @@ class RedBlackTree {
 
   std::vector<KeyType> InorderInterate() const {
     std::vector<KeyType> keys;
+    CHECK(root_->IsRoot());
     InorderInterate(root_.get(), &keys);
     return keys;
   }
@@ -293,6 +294,11 @@ class RedBlackTree {
     } else {
       grade_parent->RotateLeft();
     }
+
+    if (parent->IsRoot()) {
+      root_.release();
+      root_.reset(parent);
+    }
   }
 
   void DeletionBalance(RBNode* node) {
@@ -322,7 +328,7 @@ class RedBlackTree {
       }
     }
 
-    LOG_FATAL<< "Can not reach here";
+    LOG_FATAL << "Can not reach here";
     return NULL;
   }
 
