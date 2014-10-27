@@ -1,3 +1,3 @@
 #!/bin/bash
 
-rm -rf CMakeFiles CMakeCache.txt cmake_install.cmake Makefile out
+rm -rf CMakeFiles CMakeCache.txt cmake_install.cmake Makefile out unit.test
