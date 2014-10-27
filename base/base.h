@@ -14,6 +14,8 @@
 #ifndef HAS_GOOGLE_GLOG
 
 #include <cassert>
+#define LOG_FATAL \
+  std::cerr << ""
 
 #define LOG_ERROR \
   std::cerr << ""
@@ -42,6 +44,7 @@
     std::cerr << ""
 #else
 #include <glog/logging.h>
+#define LOG_FATAL (LOG(FATAL))
 #define LOG_ERROR (LOG(ERROR))
 #define LOG_WARNING (LOG(WARNING))
 #endif

@@ -1,8 +1,12 @@
 cmake_minimum_required (VERSION 2.6)
 project (libsus)
 
-file(GLOB TOP_SRCS "*.cc")
-set(LIB_SOURCES ${TOP_SRCS})
+set(LIB_SOURCES
+  dir.cc
+  random_file.cc
+  tiny_read_only_file.cc
+  write_only_file.cc
+)
 
 set(LIB_NAME sus)
 
@@ -32,12 +36,14 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -finline-limit=1000 -DNDEBUG")
 
 set(CLASSIC_INCLUDE_DIR /usr/local/include /usr/include)
-#set(CLASSIC_LIB_DIR /usr/local/lib /usr/lib /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu)
 
 find_package (Boost)
-if (BOOST_FOUND)
-	add_definitions(-DHAS_BOOST)
-endif (BOOST_FOUND)
+if (Boost_FOUND)
+	set(LIB_SOURCES ${LIB_SOURCES}
+	  thread_pool.cc
+	  timer.cc
+	)
+endif (Boost_FOUND)
 
 find_path(GLOG_INCLUDE_DIR glog/logging.h HINTS ${CLASSIC_INCLUDE_DIR})
 
@@ -51,3 +57,14 @@ set(LIBRARY_OUTPUT_PATH "out")
 
 include_directories("base" ${GLOG_INCLUDE_DIR})
 add_library(${LIB_NAME} STATIC ${LIB_SOURCES})
+
+include_directories(.)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/out /usr/local/lib)
+
+if(${CMAKE_BUILD_TYPE} MATCHES "Release")
+add_executable(timer_bench "benchmark/bench_timer.cc")
+target_link_libraries(timer_bench libsus.a boost_thread-mt boost_system-mt gflags glog tcmalloc profiler)
+else(${CMAKE_BUILD_TYPE} MATCHES "Release")
+add_executable(unit.test "test/tree_test.cc")
+target_link_libraries(unit.test libsus_debug.a libgtest.a libgtest_main.a boost_thread-mt boost_system-mt gflags glog)
+endif(${CMAKE_BUILD_TYPE} MATCHES "Release")

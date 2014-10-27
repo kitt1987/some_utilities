@@ -1,8 +1,5 @@
 #pragma once
 #include "base.h"
-
-#ifdef HAS_BOOST
-
 #include <boost/thread.hpp>
 
 namespace sus {
@@ -66,4 +63,3 @@ class ThreadPool {
   DISALLOW_COPY_AND_ASSIGN(ThreadPool);
 };
 }
-#endif

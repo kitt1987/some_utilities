@@ -1,5 +1,3 @@
-#ifdef HAS_BOOST
-
 #include "thread_pool.h"
 
 namespace sus {
@@ -28,7 +26,7 @@ void ThreadPool::ThreadInitial(char const volatile* static_name) {
   for (int32 i = 0; i < num_threads_; i++) {
     threads_.push_back(
         new boost::thread(
-            boost::bind(&ThreadPool::ThreadLoop, static_name, this)));
+            boost::bind(&ThreadPool::ThreadLoop, this, static_name)));
   }
 }
 
@@ -95,4 +93,3 @@ void ThreadPool::ThreadLoop(char const volatile* static_name) {
     ctx_cycle_.second(context);
 }
 }
-#endif

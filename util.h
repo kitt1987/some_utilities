@@ -115,16 +115,16 @@ inline std::string HexDump(int const* binary, size_t length) {
 
 inline int32 PtoN(std::string const& ip) {
   int32 ip_decimal;
-  CHECK_EQ(inet_pton(AF_INET, ip.data(), &ip_decimal), 1)<< ip;
+  CHECK_EQ(inet_pton(AF_INET, ip.data(), &ip_decimal), 1) << ip;
   return ip_decimal;
 }
 
 inline int64 GetCurrentTimeInMS() {
   struct timeval tv;
   bzero(&tv, sizeof(tv));
-  CHECK_EQ(gettimeofday(&tv, NULL), 0)<< "Fail to get current time due to "
-  << "[" << errno << "]"
-  << strerror(errno);
+  CHECK_EQ(gettimeofday(&tv, NULL), 0) << "Fail to get current time due to "
+                                       << "[" << errno << "]"
+                                       << strerror(errno);
   return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
@@ -138,6 +138,29 @@ inline std::string GenerateUUID() {
   }
 
   return uuid_text;
+}
+
+inline void SleepInSeconds(uint32 seconds) {
+  while (seconds > 0)
+    seconds = sleep(seconds);
+}
+
+static inline void InitRandomSeed() __attribute__((constructor));
+static inline void InitRandomSeed() {
+  srand(static_cast<uint32>(time(NULL)));
+}
+
+inline uint32 NaiveRandomNumber(uint32 max) {
+  return (rand() % max + 1);
+}
+
+inline std::vector<uint32> NaiveRandomNumbers(uint32 max, uint32 size) {
+  std::vector<uint32> numbers(size);
+  for (uint32 i = 0; i < size; ++i) {
+    numbers[i] = ((rand() % max + 1));
+  }
+
+  return numbers;
 }
 
 template<typename Container>
