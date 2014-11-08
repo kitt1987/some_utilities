@@ -61,10 +61,17 @@ add_library(${LIB_NAME} STATIC ${LIB_SOURCES})
 include_directories(.)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/out /usr/local/lib)
 
+set(UNIT_TEST_SOURCES
+  test/tree_test.cc
+  test/util_test.cc
+)
+
 if(${CMAKE_BUILD_TYPE} MATCHES "Release")
 add_executable(timer_bench "benchmark/bench_timer.cc")
 target_link_libraries(timer_bench libsus.a boost_thread-mt boost_system-mt gflags glog tcmalloc profiler)
+add_executable(unit.test ${UNIT_TEST_SOURCES})
+target_link_libraries(unit.test libsus.a gtest gtest_main boost_thread-mt boost_system-mt gflags glog)
 else(${CMAKE_BUILD_TYPE} MATCHES "Release")
-add_executable(unit.test "test/tree_test.cc")
+add_executable(unit.test ${UNIT_TEST_SOURCES})
 target_link_libraries(unit.test libsus_debug.a gtest gtest_main boost_thread-mt boost_system-mt gflags glog)
 endif(${CMAKE_BUILD_TYPE} MATCHES "Release")

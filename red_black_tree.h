@@ -5,8 +5,13 @@ namespace sus {
 template<typename KeyType, typename ValueType>
 class RedBlackTree {
  public:
-  RedBlackTree() {
+  RedBlackTree()
+      : size_(0) {
 
+  }
+
+  int32 Size() const {
+    return size_;
   }
 
   void SubAllKeys(KeyType const& delta) {
@@ -15,359 +20,390 @@ class RedBlackTree {
 
   std::vector<KeyType> InorderInterate() const {
     std::vector<KeyType> keys;
-    CHECK(root_->IsRoot());
+    CHECK(root_->parent->IsNil());
     InorderInterate(root_.get(), &keys);
     return keys;
   }
 
+  void Output() const {
+    CHECK(root_->parent->IsNil());
+    PreOrderOutput(root_.get());
+  }
+
+  bool Verify() const {
+    if (root_ == NULL || root_->IsNil())
+      return true;
+
+    if (!root_->black)
+      return false;
+
+    return VerifyBH(root_.get(), NULL);
+  }
+
   ValueType Delete(KeyType const& key) {
     RBNode* node = FindNode(key);
-    if (node == NULL)
+    if (node->key != key)
       return ValueType();
 
-    RBNode* left_most = node->LeftMost();
-    if (node != left_most) {
-      node->Swap(left_most);
+    bool is_black = node->black;
+    RBNode* balanced_node = NULL;
+    RBNode* successor = NULL;
+
+    if (node->right->IsNil()) {
+      balanced_node = node->left;
+      NodeTransplant(node, node->left);
+      successor = node->parent;
+    } else if (node->left->IsNil()) {
+      balanced_node = node->right;
+      NodeTransplant(node, node->right);
+      successor = node->parent;
+    } else {
+      successor = node->right;
+      while (!successor->left->IsNil()) {
+        successor = successor->left;
+      }
+
+      is_black = successor->black;
+      balanced_node = successor->right;
+
+      if (successor->parent != node) {
+        NodeTransplant(successor, successor->right);
+        successor->right = node->right;
+        successor->right->parent = successor;
+      }
+
+      NodeTransplant(node, successor);
+      successor->left = node->left;
+      successor->left->parent = successor;
+      successor->black = node->black;
     }
 
-    CHECK(!left_most->HasLeft());
-    RBNode* substitute = NULL;
-    if (left_most->HasRight()) {
-      substitute = left_most->ReleaseRight();
-    }
+    if (is_black)
+      DeletionBalance(balanced_node);
 
-    ValueType value = left_most->Value();
-    delete left_most->Parent()->SwapLeft(substitute);
-    DeletionBalance(node);
+    ValueType value = node->value;
+    node->left = NULL;
+    node->right = NULL;
+    delete node;
     return value;
   }
 
   bool Insert(KeyType const& key, ValueType const& value) {
     if (!root_) {
-      root_.reset(new RBNode(key, value));
+      root_.reset(new RBNode(this, key, value));
       return true;
     }
 
-    RBNode* parent = FindParent(key);
-    if (parent == NULL)
+    RBNode* parent = FindNode(key);
+    if (parent->key == key)
       return false;
 
     InsertionBalance(parent->Insert(key, value));
-    return false;
+    return true;
   }
 
  private:
-  class RBNode {
+
+  struct RBNode {
    public:
-    RBNode(KeyType const& key, ValueType const& value)
-        : black_(true),
-          parent_(NULL),
-          key_(key),
-          value_(value) {
+    explicit RBNode(RBNode* p)
+        : black(true),
+          tree(p->tree),
+          left(NULL),
+          right(NULL),
+          parent(p) {
 
     }
 
-    RBNode(RBNode* parent, KeyType const& key, ValueType const& value)
-        : black_(false),
-          parent_(parent),
-          key_(key),
-          value_(value) {
-
+    RBNode(RedBlackTree* t, KeyType const& k, ValueType const& v)
+        : black(true),
+          tree(t),
+          left(NilNode(this)),
+          right(NilNode(this)),
+          parent(NilNode(this)),
+          key(k),
+          value(v) {
+      ++tree->size_;
     }
 
-    RBNode* Insert(KeyType const& key, ValueType const& value) {
-      RBNode* new_one = new RBNode(this, key, value);
+    RBNode(RBNode* p, KeyType const& k, ValueType const& v)
+        : black(false),
+          tree(p->tree),
+          left(NilNode(this)),
+          right(NilNode(this)),
+          parent(p),
+          key(k),
+          value(v) {
+      ++tree->size_;
+    }
 
-      if (key < key_) {
-        CHECK(left_ == NULL);
-        left_.reset(new_one);
+    ~RBNode() {
+      if (left != NULL) {
+        delete left;
+      }
+
+      if (right != NULL) {
+        delete right;
+      }
+
+      --tree->size_;
+    }
+
+    RBNode* Insert(KeyType const& k, ValueType const& v) {
+      RBNode* new_one = new RBNode(this, k, v);
+
+      if (k < key) {
+        CHECK(left->IsNil());
+        left = new_one;
       } else {
-        CHECK_GT(key, key_);
-        CHECK(right_ == NULL);
-        right_.reset(new_one);
+        CHECK_GT(k, key);
+        CHECK(right->IsNil());
+        right = new_one;
       }
 
       return new_one;
     }
 
-    KeyType const& Key() const {
-      return key_;
+    bool IsNil() const {
+      return left == NULL && right == NULL;
     }
 
-    ValueType Value() const {
-      return value_;
+    static RBNode* NilNode(RBNode* parent) {
+      return new RBNode(parent);
     }
 
-    bool IsBlack() const {
-      return black_;
-    }
-
-    void Repaint() {
-      black_ = !black_;
-    }
-
-    RBNode* Parent() const {
-      return parent_;
-    }
-
-    bool IsRoot() const {
-      return parent_ == NULL;
-    }
-
-    RBNode* Uncle() const {
-      return parent_->Left() == this ? parent_->Right() : parent_->Left();
-    }
-
-    bool HasLeft() const {
-      return left_ != NULL;
-    }
-
-    RBNode* Left() const {
-      return left_.get();
-    }
-
-    RBNode* ReleaseLeft() {
-      if (left_ != NULL)
-        left_->parent_ = NULL;
-      return left_.release();
-    }
-
-    void SetLeft(RBNode* left) {
-      if (left != NULL)
-        left->parent_ = this;
-
-      left_.reset(left);
-    }
-
-    RBNode* SwapLeft(RBNode* node) {
-      RBNode* left = ReleaseLeft();
-      node->parent_ = this;
-      left_.reset(node);
-      return left;
-    }
-
-    RBNode* SwapRight(RBNode* node) {
-      RBNode* right = ReleaseRight();
-      node->parent_ = this;
-      right_.reset(node);
-      return right;
-    }
-
-    bool HasRight() const {
-      return right_ != NULL;
-    }
-
-    RBNode* Right() const {
-      return right_.get();
-    }
-
-    RBNode* ReleaseRight() {
-      if (right_ != NULL)
-        right_->parent_ = NULL;
-      return right_.release();
-    }
-
-    void SetRight(RBNode* right) {
-      if (right != NULL)
-        right->parent_ = this;
-
-      right_.reset(right);
-    }
-
-    RBNode* LeftMost() const {
-      RBNode* node = this;
-      while (node->HasLeft())
-        node = node->Left();
-      return node;
-    }
-
-    void RotateLeft() {
-      RBNode* right = ReleaseRight();
-      CHECK(right != NULL);
-      if (parent_ != NULL) {
-        if (parent_->HasRightAs(this)) {
-          CHECK_EQ(this, parent_->SwapRight(right));
-        } else {
-          CHECK(parent_->HasLeftAs(this));
-          CHECK_EQ(this, parent_->SwapLeft(right));
-        }
-      }
-
-      SetRight(right->SwapLeft(this));
-    }
-
-    void RotateRight() {
-      RBNode* left = ReleaseLeft();
-      CHECK(left != NULL);
-      if (parent_ != NULL) {
-        if (parent_->HasRightAs(this)) {
-          CHECK_EQ(this, parent_->SwapRight(left));
-        } else {
-          CHECK(parent_->HasLeftAs(this));
-          CHECK_EQ(this, parent_->SwapLeft(left));
-        }
-      }
-
-      SetLeft(left->SwapRight(this));
-    }
-
-    void Swap(RBNode* another) {
-      std::swap(key_, another->key_);
-      std::swap(value_, another->value_);
-    }
-
-    bool HasLeftAs(RBNode* node) const {
-      CHECK(left_.get() == node || right_.get() == node);
-      return left_.get() == node;
-    }
-
-    bool HasRightAs(RBNode* node) const {
-      CHECK(left_.get() == node || right_.get() == node);
-      return right_.get() == node;
-    }
-
-   private:
-    bool black_;
-    std::unique_ptr<RBNode> left_;
-    std::unique_ptr<RBNode> right_;
-    RBNode* parent_;
-    KeyType key_;
-    ValueType value_;
-
-    DISALLOW_COPY_AND_ASSIGN(RBNode);
+    bool black;
+    RedBlackTree* tree;
+    RBNode* left;
+    RBNode* right;
+    RBNode* parent;
+    KeyType key;
+    ValueType value;
   };
 
   std::unique_ptr<RBNode> root_;
+  int32 size_;
 
-  void InsertionBalance(RBNode* node) {
-    // The node is the root.
-    if (node->IsRoot()) {
-      if (!node->IsBlack()) {
-        node->Repaint();
-      }
-
-      if (node != root_.get()) {
-        root_.release();
-        root_.reset(node);
-      }
-
-      return;
-    }
-
-    // The parent is black
-    RBNode* parent = node->Parent();
-    if (parent->IsBlack()) {
-      return;
-    }
-
-    // The parent is red
-    RBNode* grade_parent = parent->Parent();
-    CHECK(grade_parent != NULL);
-
-    RBNode* uncle = node->Uncle();
-    // The uncle is red
-    if (uncle != NULL && !uncle->IsBlack()) {
-      parent->Repaint();
-      uncle->Repaint();
-      grade_parent->Repaint();
-      InsertionBalance(grade_parent);
-      return;
-    }
-
-    // The uncle is black
-    if (grade_parent->HasLeftAs(parent) && parent->HasRightAs(node)) {
-      parent->RotateLeft();
-      node = node->Left();
-    } else if (grade_parent->HasRightAs(parent) && parent->HasLeftAs(node)) {
-      parent->RotateRight();
-      node = node->Right();
-    }
-
-    parent = node->Parent();
-    grade_parent = parent->Parent();
-
-    parent->Repaint();
-    grade_parent->Repaint();
-
-    if (parent->HasLeftAs(node)) {
-      grade_parent->RotateRight();
-    } else {
-      grade_parent->RotateLeft();
-    }
-
-    if (parent->IsRoot()) {
+  void NodeTransplant(RBNode* node, RBNode* substitute) {
+    if (node->parent->IsNil()) {
       root_.release();
-      root_.reset(parent);
+      root_.reset(substitute);
+    } else {
+      RBNode* parent = node->parent;
+      if (node == parent->right) {
+        parent->right = substitute;
+      } else {
+        CHECK_EQ(node, parent->left);
+        parent->left = substitute;
+      }
     }
+
+    if (substitute)
+      substitute->parent = node->parent;
+  }
+
+  void rightRotate(RBNode* node) {
+    RBNode* new_top = node->left;
+    RBNode* leaf_changed = new_top->right;
+
+    NodeTransplant(node, new_top);
+    node->left = leaf_changed;
+    leaf_changed->parent = node;
+
+    new_top->right = node;
+    node->parent = new_top;
+  }
+
+  void leftRotate(RBNode* node) {
+    RBNode* new_top = node->right;
+    RBNode* leaf_changed = new_top->left;
+
+    NodeTransplant(node, new_top);
+    node->right = leaf_changed;
+    leaf_changed->parent = node;
+
+    new_top->left = node;
+    node->parent = new_top;
+  }
+
+  bool VerifyBH(RBNode* node, int* bh) const {
+    int r_bh = 0;
+    if (node->right->IsNil()) {
+      r_bh = 1;
+    } else {
+      if (!node->black && !node->right->black) {
+        return false;
+      }
+
+      if (!VerifyBH(node->right, &r_bh))
+        return false;
+    }
+
+    int l_bh = 0;
+    if (node->left->IsNil()) {
+      l_bh = 1;
+    } else {
+      if (!node->black && !node->left->black) {
+        return false;
+      }
+
+      if (!VerifyBH(node->left, &l_bh))
+        return false;
+    }
+
+    if (r_bh == l_bh) {
+      if (bh != NULL)
+        *bh = r_bh;
+      return true;
+    }
+
+    return false;
+  }
+
+  int RightBH(RBNode* node) {
+    if (node->right->IsNil()) {
+      return 1;
+    }
+
+    return RightBH(node->right);
+  }
+
+  int LeftBH(RBNode* node) {
+    if (node->left->IsNil()) {
+      return 1;
+    }
+
+    return LeftBH(node->left);
+  }
+
+  void InsertionBalance(RBNode* z) {
+#define INSERTION_BALANCE(z, parent, grade_parent, which_child, another_child) \
+    RBNode* y = grade_parent->another_child;\
+    if (!y->black) { \
+      y->black = true; \
+      parent->black = true; \
+      grade_parent->black = false; \
+      z = grade_parent; \
+    } else { \
+      if (z == parent->another_child) { \
+        z = parent; \
+        which_child##Rotate(z); \
+      } \
+    \
+      z->parent->black = true; \
+      z->parent->parent->black = false; \
+      another_child##Rotate(z->parent->parent);\
+    }
+
+    while (!z->parent->IsNil() && !z->parent->parent->IsNil()
+        && !z->parent->black) {
+      RBNode* parent = z->parent;
+      RBNode* grade_parent = parent->parent;
+      CHECK(!grade_parent->IsNil());
+      if (parent == grade_parent->left) {
+        INSERTION_BALANCE(z, parent, grade_parent, left, right);
+      } else {
+        INSERTION_BALANCE(z, parent, grade_parent, right, left);
+      }
+    }
+
+    root_->black = true;
   }
 
   void DeletionBalance(RBNode* node) {
+#define DELETION_BALANCE(node, parent, which_child, another_child) \
+    RBNode* w = parent->another_child; \
+    CHECK(!w->IsNil()); \
+    if (!w->black) { \
+      w->black = true; \
+      parent->black = false; \
+      which_child##Rotate(parent); \
+      w = parent->another_child; \
+    } \
+    \
+    if (w->which_child->black && w->another_child->black) { \
+      w->black = false; \
+      node = parent; \
+    } else { \
+      if (w->another_child->black) { \
+        w->which_child->black = true; \
+        w->black = false; \
+        another_child##Rotate(w); \
+        w = parent->another_child; \
+      } \
+      \
+      w->black = parent->black; \
+      parent->black = true; \
+      CHECK(!w->another_child->IsNil()); \
+      w->another_child->black = true; \
+      which_child##Rotate(parent); \
+      node = root_.get(); \
+    }
 
+    while (node->black && !node->parent->IsNil()) {
+      RBNode* parent = node->parent;
+      if (node == parent->left) {
+        DELETION_BALANCE(node, parent, left, right);
+      } else {
+        DELETION_BALANCE(node, parent, right, left);
+      }
+    }
+
+    if (!node->IsNil())
+      node->black = true;
   }
 
-  RBNode* FindParent(KeyType const& key) {
+  RBNode* FindNode(KeyType const& key) const {
     RBNode* node = root_.get();
-    while (node != NULL) {
-      if (key == node->Key())
-        return NULL;
+    while (!node->IsNil()) {
+      if (key == node->key)
+        return node;
 
-      if (key > node->Key()) {
-        if (node->HasRight()) {
-          node = node->Right();
+      if (key > node->key) {
+        if (!node->right->IsNil()) {
+          node = node->right;
           continue;
-        } else {
-          return node;
         }
-      }
 
-      if (node->HasLeft()) {
-        node = node->Left();
-        continue;
-      } else {
         return node;
       }
+
+      if (!node->left->IsNil()) {
+        node = node->left;
+        continue;
+      }
+
+      return node;
     }
 
     LOG_FATAL << "Can not reach here";
     return NULL;
   }
 
-  RBNode* FindNode(KeyType const& key) {
-    RBNode* node = root_.get();
-    while (node != NULL) {
-      if (key == node->Key())
-        return node;
+  void InorderInterate(RBNode* root, std::vector<KeyType>* keys) const {
+    if (!root->left->IsNil())
+      InorderInterate(root->left, keys);
 
-      if (key > node->Key()) {
-        if (node->HasRight()) {
-          node = node->Right();
-          continue;
-        }
+    keys->push_back(root->key);
 
-        return NULL;
-      }
-
-      if (node->HasLeft()) {
-        node = node->Left();
-        continue;
-      }
-
-      return NULL;
-    }
-
-    return NULL;
+    if (!root->right->IsNil())
+      InorderInterate(root->right, keys);
   }
 
-  void InorderInterate(RBNode* root, std::vector<KeyType>* keys) const {
-    if (root->HasLeft())
-      InorderInterate(root->Left(), keys);
+  void PreOrderOutput(RBNode* node) const {
+    std::cout << "{" << node->key << "[" << (node->black ? "B" : "R") << "]";
+    if (node->left->IsNil()) {
+      PreOrderOutput(node->left);
+    }
 
-    keys->push_back(root->Key());
+    if (node->right->IsNil()) {
+      PreOrderOutput(node->right);
+    }
 
-    if (root->HasRight())
-      InorderInterate(root->Right(), keys);
+    std::cout << "}";
   }
 
   DISALLOW_COPY_AND_ASSIGN(RedBlackTree);
-};
+}
+;
 }

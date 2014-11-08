@@ -163,6 +163,15 @@ inline std::vector<uint32> NaiveRandomNumbers(uint32 max, uint32 size) {
   return numbers;
 }
 
+inline void NaiveShuffle(std::vector<uint32>* seq) {
+  for (uint32 i = 0; i < seq->size(); ++i) {
+    if (i < seq->size() - 2) {
+      uint32 dest = NaiveRandomNumber(static_cast<uint32>(seq->size() - i - 1));
+      std::swap((*seq)[i], (*seq)[dest]);
+    }
+  }
+}
+
 template<typename Container>
 void ClearHeapElemsInSequentialContainer(Container* container) {
   if (container->empty())
