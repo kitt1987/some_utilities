@@ -3,7 +3,7 @@
 #include "util.h"
 
 TEST(TreeTest, RedBlackTreeInsertionAndDeletion) {
-  uint32 tree_size = 50000;
+  uint32 tree_size = 500;
 
   std::vector<uint32> keys(tree_size);
   uint32 seed = 10;

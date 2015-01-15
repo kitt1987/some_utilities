@@ -115,16 +115,16 @@ inline std::string HexDump(int const* binary, size_t length) {
 
 inline int32 PtoN(std::string const& ip) {
   int32 ip_decimal;
-  CHECK_EQ(inet_pton(AF_INET, ip.data(), &ip_decimal), 1) << ip;
+  CHECK_EQ(inet_pton(AF_INET, ip.data(), &ip_decimal), 1)<< ip;
   return ip_decimal;
 }
 
 inline int64 GetCurrentTimeInMS() {
   struct timeval tv;
   bzero(&tv, sizeof(tv));
-  CHECK_EQ(gettimeofday(&tv, NULL), 0) << "Fail to get current time due to "
-                                       << "[" << errno << "]"
-                                       << strerror(errno);
+  CHECK_EQ(gettimeofday(&tv, NULL), 0)<< "Fail to get current time due to "
+  << "[" << errno << "]"
+  << strerror(errno);
   return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
@@ -196,5 +196,98 @@ void ClearHeapElemsInAssociativeContainer(Container* container) {
   }
 
   container->clear();
+}
+
+template<typename SortedInputIteratorA, typename SortedInputIteratorB,
+    typename OutputIterator>
+void diff(SortedInputIteratorA begin_a, SortedInputIteratorA end_a,
+          SortedInputIteratorB begin_b, SortedInputIteratorB end_b,
+          OutputIterator a_b, OutputIterator b_a, OutputIterator ab) {
+  auto previous = *begin_a;
+  while (begin_a != end_a && begin_b != end_b) {
+    if (*begin_a < *begin_b) {
+      *a_b = *begin_a;
+      CHECK_GE(*begin_a, previous);
+      previous = *begin_a;
+      ++begin_a;
+      ++a_b;
+      continue;
+    }
+
+    if (*begin_a > *begin_b) {
+      *b_a = *begin_b;
+      CHECK_GE(*begin_b, previous);
+      previous = *begin_b;
+      ++begin_b;
+      ++b_a;
+      continue;
+    }
+
+    *ab = *begin_a;
+    CHECK_GE(*begin_a, previous);
+    previous = *begin_a;
+
+    ++begin_a;
+    ++begin_b;
+    ++ab;
+  }
+
+  if (begin_a != end_a) {
+    CHECK(begin_b == end_b);
+    std::copy(begin_a, end_a, a_b);
+    return;
+  }
+
+  if (begin_b != end_b) {
+    CHECK(begin_a == end_a);
+    std::copy(begin_b, end_b, b_a);
+  }
+}
+
+template<typename SortedInputIteratorA, typename SortedInputIteratorB,
+    typename OutputIterator, typename Compare>
+void diff(SortedInputIteratorA begin_a, SortedInputIteratorA end_a,
+          SortedInputIteratorB begin_b, SortedInputIteratorB end_b,
+          OutputIterator a_b, OutputIterator b_a, OutputIterator ab,
+          Compare less) {
+  auto previous = *begin_a;
+  while (begin_a != end_a && begin_b != end_b) {
+    if (less(*begin_a, *begin_b)) {
+      *a_b = *begin_a;
+      CHECK(less(previous, *begin_a));
+      previous = *begin_a;
+      ++begin_a;
+      ++a_b;
+      continue;
+    }
+
+    if (less(*begin_a, *begin_b)) {
+      *b_a = *begin_b;
+      CHECK(less(previous, *begin_b));
+      previous = *begin_b;
+      ++begin_b;
+      ++b_a;
+      continue;
+    }
+
+    *ab = *begin_a;
+    CHECK(less(previous, *begin_a));
+    previous = *begin_a;
+
+    ++begin_a;
+    ++begin_b;
+    ++ab;
+  }
+
+  if (begin_a != end_a) {
+    CHECK(begin_b == end_b);
+    std::copy(begin_a, end_a, a_b);
+    return;
+  }
+
+  if (begin_b != end_b) {
+    CHECK(begin_a == end_a);
+    std::copy(begin_b, end_b, b_a);
+  }
 }
 }

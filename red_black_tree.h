@@ -15,7 +15,21 @@ class RedBlackTree {
   }
 
   void SubAllKeys(KeyType const& delta) {
+    if (root_ == NULL)
+      return;
 
+    std::vector<RBNode*> next;
+    RBNode* x = root_.get();
+    while (x->left != NULL) {
+      next->push_back(x);
+      x = x->left;
+    }
+
+    while (!next.empty()) {
+      RBNode* x = next.back();
+      CHECK_GE(x->key, delta);
+      x->key -= delta;
+    }
   }
 
   std::vector<KeyType> InorderInterate() const {
