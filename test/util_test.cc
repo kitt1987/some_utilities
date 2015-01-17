@@ -99,3 +99,84 @@ TEST(DiffTest, Normal) {
   ASSERT_EQ(ab[0], 2);
   ASSERT_EQ(ab[1], 4);
 }
+
+TEST(SortAndDiffTest, Normal) {
+  std::vector<uint32> a;
+  std::vector<uint32> b;
+
+  a.push_back(1);
+  a.push_back(2);
+  a.push_back(3);
+  a.push_back(4);
+  a.push_back(5);
+
+  sus::NaiveShuffle(&a);
+
+  std::vector<uint32> a_b, b_a, ab;
+  sus::sort_and_diff(a.begin(), a.end(), b.begin(), b.end(),
+                     std::back_inserter(a_b), std::back_inserter(b_a),
+                     std::back_inserter(ab));
+  ASSERT_EQ(a_b.size(), a.size());
+  ASSERT_TRUE(b_a.empty());
+  ASSERT_TRUE(ab.empty());
+
+  b.push_back(6);
+  a_b.clear();
+  b_a.clear();
+  ab.clear();
+  sus::sort_and_diff(a.begin(), a.end(), b.begin(), b.end(),
+                     std::back_inserter(a_b), std::back_inserter(b_a),
+                     std::back_inserter(ab));
+  ASSERT_EQ(a_b.size(), a.size());
+  ASSERT_EQ(b_a.size(), b.size());
+  ASSERT_EQ(b_a[0], 6);
+  ASSERT_TRUE(ab.empty());
+
+  b.push_back(2);
+  b.push_back(4);
+  b.push_back(8);
+
+  sus::NaiveShuffle(&b);
+
+  a_b.clear();
+  b_a.clear();
+  ab.clear();
+  sus::sort_and_diff(a.begin(), a.end(), b.begin(), b.end(),
+                     std::back_inserter(a_b), std::back_inserter(b_a),
+                     std::back_inserter(ab));
+  ASSERT_EQ(a_b.size(), 3);
+  ASSERT_EQ(a_b[0], 1);
+  ASSERT_EQ(a_b[1], 3);
+  ASSERT_EQ(a_b[2], 5);
+  ASSERT_EQ(b_a.size(), 2);
+  ASSERT_EQ(b_a[0], 6);
+  ASSERT_EQ(b_a[1], 8);
+  ASSERT_EQ(ab.size(), 2);
+  ASSERT_EQ(ab[0], 2);
+  ASSERT_EQ(ab[1], 4);
+}
+
+TEST(ClearStlContainerTest, Normal) {
+  std::vector<int*> a;
+  a.push_back(new int(1));
+  a.push_back(new int(2));
+  a.push_back(new int(3));
+
+  std::set<int*> b;
+  ASSERT_TRUE(b.insert(new int(1)).second);
+  ASSERT_TRUE(b.insert(new int(2)).second);
+  ASSERT_TRUE(b.insert(new int(3)).second);
+
+  std::map<int, int*> c;
+  ASSERT_TRUE(c.insert(std::make_pair(1, new int(1))).second);
+  ASSERT_TRUE(c.insert(std::make_pair(2, new int(2))).second);
+  ASSERT_TRUE(c.insert(std::make_pair(3, new int(3))).second);
+
+  sus::ClearStlContainer(&a);
+  sus::ClearStlContainer(&b);
+  sus::ClearStlContainer(&c);
+
+  ASSERT_TRUE(a.empty());
+  ASSERT_TRUE(b.empty());
+  ASSERT_TRUE(c.empty());
+}

@@ -173,7 +173,7 @@ inline void NaiveShuffle(std::vector<uint32>* seq) {
 }
 
 template<typename Container>
-void ClearHeapElemsInSequentialContainer(Container* container) {
+void ClearStlContainer(Container* container) {
   if (container->empty())
     return;
 
@@ -185,12 +185,12 @@ void ClearHeapElemsInSequentialContainer(Container* container) {
   container->clear();
 }
 
-template<typename Container>
-void ClearHeapElemsInAssociativeContainer(Container* container) {
+template<typename K, typename V>
+void ClearStlContainer(std::map<K, V>* container) {
   if (container->empty())
     return;
 
-  for (typename Container::iterator each = container->begin();
+  for (typename std::map<K, V>::iterator each = container->begin();
       each != container->end(); ++each) {
     delete each->second;
   }
@@ -198,11 +198,11 @@ void ClearHeapElemsInAssociativeContainer(Container* container) {
   container->clear();
 }
 
-template<typename SortedInputIteratorA, typename SortedInputIteratorB,
+template<typename ForwareIteratorA, typename ForwardIteratorB,
     typename OutputIterator>
-void diff(SortedInputIteratorA begin_a, SortedInputIteratorA end_a,
-          SortedInputIteratorB begin_b, SortedInputIteratorB end_b,
-          OutputIterator a_b, OutputIterator b_a, OutputIterator ab) {
+void diff(ForwareIteratorA begin_a, ForwareIteratorA end_a,
+          ForwardIteratorB begin_b, ForwardIteratorB end_b, OutputIterator a_b,
+          OutputIterator b_a, OutputIterator ab) {
   auto previous = *begin_a;
   while (begin_a != end_a && begin_b != end_b) {
     if (*begin_a < *begin_b) {
@@ -244,12 +244,11 @@ void diff(SortedInputIteratorA begin_a, SortedInputIteratorA end_a,
   }
 }
 
-template<typename SortedInputIteratorA, typename SortedInputIteratorB,
+template<typename ForwardIteratorA, typename ForwardIteratorB,
     typename OutputIterator, typename Compare>
-void diff(SortedInputIteratorA begin_a, SortedInputIteratorA end_a,
-          SortedInputIteratorB begin_b, SortedInputIteratorB end_b,
-          OutputIterator a_b, OutputIterator b_a, OutputIterator ab,
-          Compare less) {
+void diff(ForwardIteratorA begin_a, ForwardIteratorA end_a,
+          ForwardIteratorB begin_b, ForwardIteratorB end_b, OutputIterator a_b,
+          OutputIterator b_a, OutputIterator ab, Compare less) {
   auto previous = *begin_a;
   while (begin_a != end_a && begin_b != end_b) {
     if (less(*begin_a, *begin_b)) {
@@ -289,5 +288,26 @@ void diff(SortedInputIteratorA begin_a, SortedInputIteratorA end_a,
     CHECK(begin_a == end_a);
     std::copy(begin_b, end_b, b_a);
   }
+}
+
+template<typename RandomIteratorA, typename RandomIteratorB,
+    typename OutputIterator>
+void sort_and_diff(RandomIteratorA begin_a, RandomIteratorA end_a,
+                   RandomIteratorB begin_b, RandomIteratorB end_b,
+                   OutputIterator a_b, OutputIterator b_a, OutputIterator ab) {
+  std::sort(begin_a, end_a);
+  std::sort(begin_b, end_b);
+  diff(begin_a, end_a, begin_b, end_b, a_b, b_a, ab);
+}
+
+template<typename RandomIteratorA, typename RandomIteratorB,
+    typename OutputIterator, typename Compare>
+void sort_and_diff(RandomIteratorA begin_a, RandomIteratorA end_a,
+                   RandomIteratorB begin_b, RandomIteratorB end_b,
+                   OutputIterator a_b, OutputIterator b_a, OutputIterator ab,
+                   Compare less) {
+  std::sort(begin_a, end_a, less);
+  std::sort(begin_b, end_b, less);
+  diff(begin_a, end_a, begin_b, end_b, a_b, b_a, ab, less);
 }
 }
